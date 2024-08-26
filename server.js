@@ -26,10 +26,6 @@ const io = new Server(server, {
   }
 });
 
-sequelize.authenticate()
-  .then(() => console.log('MySQL connected'))
-  .catch(err => console.log('Error:', err));
-
 const createUsersTableQuery = `
   CREATE TABLE IF NOT EXISTS Users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,21 +56,9 @@ const createQuestionnairesTableQuery = `
     completed BOOLEAN DEFAULT false,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES Products(id)
+    FOREIGN KEY (client_id) REFERENCES Products(id) ON DELETE CASCADE ON UPDATE CASCADE
   );
 `;
-
-sequelize.query(createUsersTableQuery)
-  .then(() => console.log('Users table created'))
-  .catch(err => console.error('Error creating Users table:', err));
-
-sequelize.query(createProductsTableQuery)
-  .then(() => console.log('Products table created'))
-  .catch(err => console.error('Error creating Products table:', err));
-
-sequelize.query(createQuestionnairesTableQuery)
-  .then(() => console.log('Questionnaires table created'))
-  .catch(err => console.error('Error creating Questionnaires table:', err));
 
 app.use(cors());
 app.use(express.json());
@@ -90,9 +74,32 @@ io.on('connection', (socket) => {
   });
 });
 
-sequelize.sync()
+const PORT = process.env.PORT || 3001; // Changed from 3306
+
+// Authenticate database connection
+sequelize.authenticate()
+  .then(() => console.log('MySQL connected'))
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
+    process.exit(1);
+  });
+
+// Create tables in sequence
+sequelize.query(createUsersTableQuery)
   .then(() => {
-    const PORT = process.env.PORT || 4000;
+    console.log('Users table created');
+    return sequelize.query(createProductsTableQuery);
+  })
+  .then(() => {
+    console.log('Products table created');
+    return sequelize.query(createQuestionnairesTableQuery);
+  })
+  .then(() => {
+    console.log('Questionnaires table created');
+    // Start the server after tables are created
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
-  .catch(err => console.log('Error:', err));
+  .catch(err => {
+    console.error('Error setting up database or starting server:', err);
+    process.exit(1);
+  });
