@@ -9,7 +9,7 @@ const sequelize = new Sequelize(process.env.DB_DBNAME, process.env.DB_USERNAME, 
   dialect: 'mysql',
   dialectOptions: {
     ssl: {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false,
     }
   }
 });
